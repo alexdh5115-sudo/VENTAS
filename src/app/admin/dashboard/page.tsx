@@ -130,7 +130,7 @@ export default function Dashboard() {
           <div className="overflow-x-auto">
             {products.length === 0 ? (
               <div className="p-8 text-center text-peak-silver font-mono">
-                No hay productos. Haz clic en "Cargar Catálogo del Excel" para subir los iniciales.
+                No hay productos. Haz clic en &quot;Cargar Catálogo del Excel&quot; para subir los iniciales.
               </div>
             ) : (
               <table className="w-full text-left border-collapse">
