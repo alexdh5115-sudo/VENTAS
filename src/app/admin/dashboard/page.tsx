@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import catalogData from '@/data/catalog.json';
@@ -9,6 +9,8 @@ export default function Dashboard() {
   const [products, setProducts] = useState<any[]>([]);
   const [whatsapp, setWhatsapp] = useState('');
   const [loading, setLoading] = useState(true);
+  const [uploadingId, setUploadingId] = useState<number | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -22,11 +24,9 @@ export default function Dashboard() {
       return;
     }
 
-    // Fetch config
     const { data: settings } = await supabase.from('settings').select('*').eq('key', 'whatsapp_number').single();
     if (settings) setWhatsapp(settings.value);
 
-    // Fetch products
     const { data: prods } = await supabase.from('products').select('*').order('id', { ascending: false });
     if (prods) setProducts(prods);
 
@@ -35,39 +35,55 @@ export default function Dashboard() {
 
   const handleUpdateWhatsapp = async () => {
     const { error } = await supabase.from('settings').upsert({ key: 'whatsapp_number', value: whatsapp });
-    if (error) alert("Error al actualizar: " + error.message);
-    else alert("Número de WhatsApp actualizado correctamente.");
+    if (error) alert("Error: " + error.message);
+    else alert("Número de WhatsApp actualizado.");
   };
 
-  const handleLoadExcel = async () => {
-    if (!confirm("¿Estás seguro de cargar los productos iniciales del Excel? Solo haz esto una vez para evitar duplicados.")) return;
-    
-    setLoading(true);
-    
-    // Filtrar filas vacías o sin precio válido
-    const validProducts = catalogData.filter((p: any) => 
-      p.Marca && p["Modelo / Silueta"] && p["Precio Venta Sugerido (S/)"] != null
-    );
-
-    const formattedProducts = validProducts.map((p: any) => ({
-      marca: p.Marca,
-      modelo: p["Modelo / Silueta"],
-      talla_eur: p["Talla (EUR)"] || 0,
-      talla_us: p["Talla (US)"] || 0,
-      precio: p["Precio Venta Sugerido (S/)"] || 0,
-      estado: p["Estado / Condición"] || 'Nuevo',
-      colorway: p["Referencia Visual / Colorway"] || '',
-      imagen_url: ""
-    }));
-
-    const { error } = await supabase.from('products').insert(formattedProducts);
-    if (error) {
-      alert("Error: " + error.message);
-    } else {
-      alert(`¡${formattedProducts.length} productos cargados exitosamente!`);
-      await checkAuthAndFetchData();
+  const handleUpdateStock = async (id: number, newStock: number) => {
+    const { error } = await supabase.from('products').update({ stock: newStock }).eq('id', id);
+    if (!error) {
+      setProducts(products.map(p => p.id === id ? { ...p, stock: newStock } : p));
     }
-    setLoading(false);
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, productId: number) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingId(productId);
+    
+    // Generar nombre de archivo único
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${productId}-${Math.random()}.${fileExt}`;
+    const filePath = `public/${fileName}`;
+
+    // Subir a Storage
+    const { error: uploadError } = await supabase.storage.from('product-images').upload(filePath, file);
+
+    if (uploadError) {
+      alert("Error al subir imagen: " + uploadError.message);
+      setUploadingId(null);
+      return;
+    }
+
+    // Obtener URL pública
+    const { data: { publicUrl } } = supabase.storage.from('product-images').getPublicUrl(filePath);
+
+    // Guardar URL en la tabla de productos
+    const { error: updateError } = await supabase.from('products').update({ imagen_url: publicUrl }).eq('id', productId);
+
+    if (!updateError) {
+      setProducts(products.map(p => p.id === productId ? { ...p, imagen_url: publicUrl } : p));
+    }
+
+    setUploadingId(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleDelete = async (id: number) => {
+    if(!confirm("¿Eliminar este producto?")) return;
+    await supabase.from('products').delete().eq('id', id);
+    setProducts(products.filter(p => p.id !== id));
   };
 
   const handleLogout = async () => {
@@ -75,7 +91,7 @@ export default function Dashboard() {
     router.push('/admin');
   };
 
-  if (loading) return <div className="min-h-screen bg-dark-bg text-white flex items-center justify-center font-mono">Cargando...</div>;
+  if (loading) return <div className="min-h-screen bg-dark-bg text-white flex items-center justify-center font-mono">Cargando panel...</div>;
 
   return (
     <div className="min-h-screen bg-dark-bg text-white p-8">
@@ -90,7 +106,6 @@ export default function Dashboard() {
           </button>
         </div>
 
-        {/* Configuración */}
         <section className="bg-card-bg border border-white/10 p-6 rounded-xl mb-8">
           <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
             <span>⚙️</span> Configuración de Ventas
@@ -111,54 +126,69 @@ export default function Dashboard() {
           </div>
         </section>
 
-        {/* Catálogo */}
         <section className="bg-card-bg border border-white/10 rounded-xl overflow-hidden">
           <div className="p-6 border-b border-white/10 flex justify-between items-center">
             <h2 className="text-xl font-bold">Catálogo de Productos ({products.length})</h2>
-            <div className="flex gap-4">
-              {products.length === 0 && (
-                <button onClick={handleLoadExcel} className="bg-yellow-600 hover:bg-yellow-500 px-4 py-2 rounded font-bold text-sm">
-                  ⚡ CARGAR CATÁLOGO DEL EXCEL
-                </button>
-              )}
-              <button className="bg-green-600 hover:bg-green-500 px-4 py-2 rounded font-bold text-sm">
-                + NUEVO PRODUCTO
-              </button>
-            </div>
           </div>
           
           <div className="overflow-x-auto">
-            {products.length === 0 ? (
-              <div className="p-8 text-center text-peak-silver font-mono">
-                No hay productos. Haz clic en &quot;Cargar Catálogo del Excel&quot; para subir los iniciales.
-              </div>
-            ) : (
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-white/5 text-peak-silver text-xs font-mono">
-                    <th className="p-4">MARCA</th>
-                    <th className="p-4">MODELO</th>
-                    <th className="p-4">TALLA (US)</th>
-                    <th className="p-4">PRECIO (S/)</th>
-                    <th className="p-4">ACCIONES</th>
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-white/5 text-peak-silver text-xs font-mono">
+                  <th className="p-4">IMAGEN</th>
+                  <th className="p-4">MODELO</th>
+                  <th className="p-4">TALLA</th>
+                  <th className="p-4">PRECIO</th>
+                  <th className="p-4">STOCK</th>
+                  <th className="p-4">ACCIONES</th>
+                </tr>
+              </thead>
+              <tbody>
+                {products.map(p => (
+                  <tr key={p.id} className="border-b border-white/5 hover:bg-white/5">
+                    <td className="p-4">
+                      <div className="w-16 h-16 bg-[#0a0a0c] rounded border border-white/10 overflow-hidden relative flex items-center justify-center">
+                        {p.imagen_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={p.imagen_url} alt="Prod" className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-[10px] text-peak-silver">SIN FOTO</span>
+                        )}
+                        <label className={`absolute inset-0 bg-black/50 opacity-0 hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity ${uploadingId === p.id ? 'opacity-100' : ''}`}>
+                          {uploadingId === p.id ? <span className="text-xs">⏳</span> : <span className="text-xs font-bold">+ FOTO</span>}
+                          <input 
+                            type="file" 
+                            accept="image/*" 
+                            className="hidden" 
+                            onChange={(e) => handleImageUpload(e, p.id)} 
+                            disabled={uploadingId !== null}
+                          />
+                        </label>
+                      </div>
+                    </td>
+                    <td className="p-4 font-bold text-sm">
+                      {p.marca} <br/><span className="text-peak-silver font-normal">{p.modelo}</span>
+                    </td>
+                    <td className="p-4 text-sm">
+                      {p.talla_eur} EUR <br/><span className="text-peak-silver">{p.talla_us} US</span>
+                    </td>
+                    <td className="p-4 text-electric-blue font-bold">S/ {p.precio}</td>
+                    <td className="p-4">
+                      <input 
+                        type="number" 
+                        min="0"
+                        value={p.stock ?? 1} 
+                        onChange={(e) => handleUpdateStock(p.id, parseInt(e.target.value))}
+                        className="w-16 bg-[#0a0a0c] border border-white/20 rounded p-1 text-white text-center focus:border-electric-blue outline-none"
+                      />
+                    </td>
+                    <td className="p-4">
+                      <button onClick={() => handleDelete(p.id)} className="text-red-500 hover:text-red-400 text-sm font-bold">Eliminar</button>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {products.map(p => (
-                    <tr key={p.id} className="border-b border-white/5 hover:bg-white/5">
-                      <td className="p-4 font-bold">{p.marca}</td>
-                      <td className="p-4">{p.modelo}</td>
-                      <td className="p-4">{p.talla_us}</td>
-                      <td className="p-4 text-electric-blue font-bold">S/ {p.precio}</td>
-                      <td className="p-4">
-                        <button className="text-peak-silver hover:text-white underline text-sm mr-4">Editar</button>
-                        <button className="text-red-500 hover:text-red-400 underline text-sm">Eliminar</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
+                ))}
+              </tbody>
+            </table>
           </div>
         </section>
       </div>
