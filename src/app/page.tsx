@@ -236,23 +236,34 @@ export default function Home() {
                     
                     <p className="text-peak-silver text-sm mb-4 truncate" title={product.colorway}>{product.colorway}</p>
                     
-                    <div className="mb-6">
-                      <p className="text-xs text-peak-silver font-mono mb-2">TALLAS EQUIVALENTES</p>
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-1">
-                          <span className="border border-white/20 bg-white/5 w-8 h-8 flex items-center justify-center text-xs font-bold rounded text-white">
-                            {product.talla_eur}
-                          </span>
-                          <span className="text-peak-silver text-[10px] font-mono">PERÚ/EUR</span>
-                        </div>
-                        <span className="text-white/20">|</span>
-                        <div className="flex items-center gap-1">
-                          <span className="border border-electric-blue text-electric-blue bg-electric-blue/10 w-8 h-8 flex items-center justify-center text-xs font-bold rounded">
-                            {product.talla_us}
-                          </span>
-                          <span className="text-peak-silver text-[10px] font-mono">US</span>
-                        </div>
-                      </div>
+                    <div className="mb-6 h-12">
+                      {product.categoria === 'Zapatillas' && product.talla_eur > 0 ? (
+                        <>
+                          <p className="text-xs text-peak-silver font-mono mb-2">TALLAS EQUIVALENTES</p>
+                          <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-1">
+                              <span className="border border-white/20 bg-white/5 w-8 h-8 flex items-center justify-center text-xs font-bold rounded text-white">
+                                {product.talla_eur}
+                              </span>
+                              <span className="text-peak-silver text-[10px] font-mono">PERÚ/EUR</span>
+                            </div>
+                            <span className="text-white/20">|</span>
+                            <div className="flex items-center gap-1">
+                              <span className="border border-electric-blue text-electric-blue bg-electric-blue/10 w-8 h-8 flex items-center justify-center text-xs font-bold rounded">
+                                {product.talla_us}
+                              </span>
+                              <span className="text-peak-silver text-[10px] font-mono">US</span>
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-xs text-peak-silver font-mono mb-2">CATEGORÍA</p>
+                          <div className="inline-block border border-white/20 bg-white/5 px-3 py-1 text-xs font-bold rounded text-white">
+                            {product.categoria || 'Accesorio'}
+                          </div>
+                        </>
+                      )}
                     </div>
 
                     <p className="text-xs text-peak-silver mb-4 flex items-center gap-1">
