@@ -4,7 +4,7 @@ import math
 file = 'C:/Users/fadep/Downloads/Catalogo Maestro Zapatillas e Implementos (Definitivo - Precios Internos en Blanco).xlsx'
 xl = pd.ExcelFile(file)
 
-sql = "INSERT INTO public.products (marca, modelo, talla_eur, talla_us, precio, estado, colorway, imagen_url, costo_proveedor, categoria) VALUES \n"
+sql = "TRUNCATE TABLE public.products;\nINSERT INTO public.products (marca, modelo, talla_eur, talla_us, precio, estado, colorway, imagen_url, costo_proveedor, categoria) VALUES \n"
 values = []
 
 # Hoja 1: Zapatillas

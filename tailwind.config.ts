@@ -14,6 +14,10 @@ const config: Config = {
         'dark-bg': '#0a0a0c',
         'card-bg': '#121216',
       },
+      fontFamily: {
+        sans: ['var(--font-inter)', 'sans-serif'],
+        oswald: ['var(--font-oswald)', 'sans-serif'],
+      },
       backgroundImage: {
         "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
         "gradient-conic":

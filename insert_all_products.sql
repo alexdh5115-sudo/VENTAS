@@ -1,3 +1,4 @@
+TRUNCATE TABLE public.products;
 INSERT INTO public.products (marca, modelo, talla_eur, talla_us, precio, estado, colorway, imagen_url, costo_proveedor, categoria) VALUES 
 ('Under Armour', 'Under Armour Jet 23', 37.5, 6.0, 150.0, 'Segunda mano (Grado A)', 'Jet 23', '', 80.0, 'Zapatillas'),
 ('Nike (Kyrie Irving)', 'Nike Kyrie Infinity', 36.0, 4.0, 165.0, 'Segunda mano (Grado A)', 'Nike Kyrie Infinity', '', 90.0, 'Zapatillas'),
